@@ -97,27 +97,117 @@
     return all;
   }
 
-  // -------- Sound (tiny WebAudio beeps) --------
+  // -------- Sound (cute kawaii sounds for girls) --------
   let audioCtx = null;
   function ac(){ if(!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)(); return audioCtx; }
-  function beep(freq, dur=0.12, type='sine', vol=0.08){
+
+  // Base tone with envelope
+  function tone(freq, dur=0.12, type='sine', vol=0.08, delay=0){
     try {
       const ctx = ac();
-      const o = ctx.createOscillator(); const g = ctx.createGain();
-      o.type = type; o.frequency.value = freq;
-      g.gain.value = vol;
-      o.connect(g); g.connect(ctx.destination);
-      const t = ctx.currentTime;
-      g.gain.setValueAtTime(vol, t);
+      const o = ctx.createOscillator();
+      const g = ctx.createGain();
+      o.type = type;
+      o.frequency.value = freq;
+      o.connect(g);
+      g.connect(ctx.destination);
+      const t = ctx.currentTime + delay;
+      g.gain.setValueAtTime(0, t);
+      g.gain.linearRampToValueAtTime(vol, t + 0.01);
       g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
-      o.start(t); o.stop(t + dur);
+      o.start(t);
+      o.stop(t + dur);
     } catch(e){}
   }
-  function sndCorrect(){ beep(660,.1,'triangle',.07); setTimeout(()=>beep(880,.14,'triangle',.07),90); }
-  function sndWrong(){ beep(200,.18,'sawtooth',.05); }
-  function sndTap(){ beep(420,.05,'sine',.04); }
+
+  // Sparkle: layered high sine + triangle for a キラキラ shimmer
+  function sparkle(freq, delay=0){
+    tone(freq, 0.18, 'sine', 0.06, delay);
+    tone(freq * 2, 0.12, 'sine', 0.03, delay);
+    tone(freq * 1.5, 0.15, 'triangle', 0.025, delay);
+  }
+
+  // Soft bubble pop
+  function bubble(freq, delay=0){
+    try {
+      const ctx = ac();
+      const o = ctx.createOscillator();
+      const g = ctx.createGain();
+      o.type = 'sine';
+      o.frequency.setValueAtTime(freq, ctx.currentTime + delay);
+      o.frequency.exponentialRampToValueAtTime(freq * 0.6, ctx.currentTime + delay + 0.15);
+      o.connect(g);
+      g.connect(ctx.destination);
+      const t = ctx.currentTime + delay;
+      g.gain.setValueAtTime(0, t);
+      g.gain.linearRampToValueAtTime(0.07, t + 0.01);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + 0.2);
+      o.start(t);
+      o.stop(t + 0.2);
+    } catch(e){}
+  }
+
+  // ✨ Correct: ascending sparkle arpeggio (キラキラ〜ン♪)
+  function sndCorrect(){
+    sparkle(880, 0);
+    sparkle(1109, 0.08);
+    sparkle(1319, 0.16);
+    sparkle(1760, 0.26);
+  }
+
+  // 💭 Wrong: gentle descending bubble (ぽよん…)
+  function sndWrong(){
+    bubble(400, 0);
+    bubble(300, 0.12);
+    tone(220, 0.3, 'sine', 0.04, 0.2);
+  }
+
+  // 👆 Tap: soft pop (ぽん)
+  function sndTap(){
+    bubble(600, 0);
+    tone(900, 0.06, 'sine', 0.025, 0);
+  }
+
+  // 🎶 Win: magical melody (やったね！のファンファーレ)
   function sndWin(){
-    [523,659,784,1047].forEach((f,i) => setTimeout(()=>beep(f,.16,'triangle',.07), i*120));
+    // C5 E5 G5 C6 — bright major arpeggio with sparkle layers
+    const melody = [523, 659, 784, 1047];
+    melody.forEach((f, i) => {
+      sparkle(f, i * 0.13);
+    });
+    // Final high shimmer chord
+    setTimeout(() => {
+      sparkle(1319, 0);
+      sparkle(1568, 0.04);
+      sparkle(2093, 0.08);
+      tone(1047, 0.5, 'triangle', 0.04, 0.12);
+    }, melody.length * 130 + 60);
+  }
+
+  // 🌟 Combo milestone sound (すごーい！)
+  function sndCombo(){
+    tone(784, 0.1, 'triangle', 0.05, 0);
+    sparkle(1047, 0.06);
+    sparkle(1319, 0.14);
+  }
+
+  // 🎀 Level up / unlock jingle
+  function sndUnlock(){
+    const notes = [523, 659, 784, 1047, 1319];
+    notes.forEach((f, i) => {
+      sparkle(f, i * 0.1);
+      tone(f, 0.3, 'triangle', 0.035, i * 0.1);
+    });
+  }
+
+  // 💖 Friend collected sound
+  function sndFriend(){
+    const notes = [659, 784, 1047, 1319, 1568];
+    notes.forEach((f, i) => {
+      sparkle(f, i * 0.12);
+    });
+    tone(1047, 0.6, 'sine', 0.035, 0.5);
+    tone(1568, 0.6, 'sine', 0.025, 0.5);
   }
 
   // -------- Screens --------
@@ -193,11 +283,12 @@
       session.combo++;
       session.comboMax = Math.max(session.comboMax, session.combo);
       const fb = $('feedback');
-      const msgs = ['せいかい！','すごい！','よくできました！','やったね！','てんさい！'];
-      fb.textContent = msgs[rand(msgs.length)] + ' 🎉';
+      const msgs = ['せいかい！','すごーい！','よくできました！','やったね！','てんさい！','かんぺき！','きらきら〜！','すてき！'];
+      const emojis = ['🎉','✨','🌟','💖','🎀','🌸','💫','⭐'];
+      fb.textContent = msgs[rand(msgs.length)] + ' ' + emojis[rand(emojis.length)];
       fb.classList.add('good');
       $('mascot-quiz').innerHTML = mascotSVG('shina','wow');
-      sndCorrect();
+      if(session.combo >= 3 && session.combo % 3 === 0) { sndCombo(); } else { sndCorrect(); }
     } else {
       btn.classList.add('wrong');
       session.combo = 0;
@@ -299,7 +390,7 @@
           saveState(state);
           refreshHUD();
           renderCollection();
-          sndWin();
+          sndFriend();
         });
       }
       grid.appendChild(card);
