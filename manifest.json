@@ -1,0 +1,18 @@
+{
+  "name": "とけいのよみかた｜シナモのおけいこ",
+  "short_name": "とけいおけいこ",
+  "description": "シナモといっしょに とけいのよみかたを おけいこしよう！",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#FFFBF3",
+  "theme_color": "#BEE3F8",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

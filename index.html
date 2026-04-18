@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<meta name="theme-color" content="#BEE3F8">
+<meta name="description" content="シナモといっしょに とけいのよみかたを おけいこしよう！ こどもむけの たのしい がくしゅうアプリ">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta property="og:title" content="とけいのよみかた｜シナモのおけいこ">
+<meta property="og:description" content="シナモといっしょに とけいのよみかたを おけいこしよう！">
+<meta property="og:type" content="website">
+<meta property="og:image" content="/favicon.svg">
+<link rel="manifest" href="./manifest.json">
+<link rel="apple-touch-icon" href="./favicon.svg">
+<title>とけいのよみかた｜シナモのおけいこ</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Mochiy+Pop+One&family=Zen+Maru+Gothic:wght@500;700;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="./style.css">
+<link rel="icon" href="./favicon.svg" type="image/svg+xml">
+</head>
+<body>
+<div id="app">
+  <!-- Top bar -->
+  <header class="topbar">
+    <div class="hud hud-xp"><span class="hud-label">レベル</span><span id="hud-level">1</span></div>
+    <div class="hud hud-streak"><span class="hud-icon">🔥</span><span id="hud-streak">0</span></div>
+    <div class="hud hud-coin"><span class="hud-icon">🌟</span><span id="hud-coin">0</span></div>
+  </header>
+
+  <!-- Home screen -->
+  <section id="screen-home" class="screen active">
+    <div class="home-hero">
+      <div class="bubbles">
+        <span></span><span></span><span></span><span></span><span></span>
+      </div>
+      <div id="mascot-home" class="mascot mascot-lg"></div>
+      <h1 class="title">とけいのよみかた</h1>
+      <p class="subtitle">シナモといっしょに おけいこしよう！</p>
+    </div>
+
+    <div class="level-grid" id="level-grid"></div>
+
+    <div class="home-actions">
+      <button class="btn btn-ghost" id="btn-collection">おともだち ずかん</button>
+      <button class="btn btn-ghost" id="btn-reset">さいしょから</button>
+    </div>
+  </section>
+
+  <!-- Quiz screen -->
+  <section id="screen-quiz" class="screen">
+    <div class="quiz-head">
+      <button class="btn-back" id="btn-back-home">← もどる</button>
+      <div class="progress-wrap">
+        <div class="progress-bar"><div class="progress-fill" id="progress-fill"></div></div>
+        <div class="progress-text"><span id="q-index">1</span>/<span id="q-total">10</span></div>
+      </div>
+      <div class="combo" id="combo-chip">れんぞく <span id="combo-count">0</span></div>
+    </div>
+
+    <div class="clock-stage">
+      <div id="clock" class="clock"></div>
+      <div id="mascot-quiz" class="mascot mascot-md mascot-bob"></div>
+    </div>
+
+    <div class="choices" id="choices"></div>
+
+    <div class="feedback" id="feedback"></div>
+  </section>
+
+  <!-- Result screen -->
+  <section id="screen-result" class="screen">
+    <div class="confetti" id="confetti"></div>
+    <div class="result-card">
+      <div id="mascot-result" class="mascot mascot-lg"></div>
+      <h2 class="result-title" id="result-title">できたね！</h2>
+      <div class="stars" id="stars"><span>★</span><span>★</span><span>★</span></div>
+      <p class="result-score"><span id="result-correct">0</span> / 10 せいかい</p>
+      <p class="result-reward">🌟 <span id="result-coins">+0</span></p>
+      <div class="result-actions">
+        <button class="btn btn-primary" id="btn-retry">もういっかい</button>
+        <button class="btn btn-secondary" id="btn-home">ホームへ</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- Collection screen -->
+  <section id="screen-collection" class="screen">
+    <div class="quiz-head">
+      <button class="btn-back" id="btn-back-home2">← もどる</button>
+      <h2 class="screen-title">おともだち ずかん</h2>
+      <div></div>
+    </div>
+    <div class="collection-grid" id="collection-grid"></div>
+    <p class="collection-hint">🌟をあつめて おともだちを ふやそう！</p>
+  </section>
+</div>
+
+<script src="./mascot.js"></script>
+<script src="./clock.js"></script>
+<script src="./srs.js"></script>
+<script src="./game.js"></script>
+</body>
+</html>
