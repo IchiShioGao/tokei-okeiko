@@ -40,7 +40,26 @@
       <p class="subtitle">シナモといっしょに おけいこしよう！</p>
     </div>
 
+    <div class="section-head">
+      <span class="section-icon">🕐</span>
+      <h2 class="section-title">とけいを よもう</h2>
+    </div>
     <div class="level-grid" id="level-grid"></div>
+
+    <div class="section-head section-head-calc">
+      <span class="section-icon">✨</span>
+      <h2 class="section-title">じかんの けいさん</h2>
+      <span class="section-badge">あたらしい！</span>
+    </div>
+    <div class="level-grid" id="calc-grid"></div>
+
+    <div class="stamp-card" id="stamp-card">
+      <div class="stamp-card-head">
+        <span class="stamp-card-title">🎀 まいにち スタンプ</span>
+        <span class="stamp-card-sub" id="stamp-card-sub">きょうも がんばろう！</span>
+      </div>
+      <div class="stamp-row" id="stamp-row"></div>
+    </div>
 
     <div class="home-actions">
       <button class="btn btn-ghost" id="btn-collection">おともだち ずかん</button>
@@ -59,9 +78,20 @@
       <div class="combo" id="combo-chip">れんぞく <span id="combo-count">0</span></div>
     </div>
 
-    <div class="clock-stage">
+    <div class="story-bubble" id="story-bubble" hidden>
+      <div class="story-mascot" id="story-mascot"></div>
+      <div class="story-text" id="story-text"></div>
+    </div>
+
+    <div class="clock-stage" id="clock-stage">
       <div id="clock" class="clock"></div>
+      <div id="calc-arrow" class="calc-arrow" hidden></div>
+      <div id="clock2" class="clock clock-side" hidden></div>
       <div id="mascot-quiz" class="mascot mascot-md mascot-bob"></div>
+    </div>
+
+    <div class="quiz-tools">
+      <button class="btn btn-hint" id="btn-hint" hidden>💡 ヒント</button>
     </div>
 
     <div class="choices" id="choices"></div>
@@ -100,6 +130,7 @@
 <script src="./mascot.js"></script>
 <script src="./clock.js"></script>
 <script src="./srs.js"></script>
+<script src="./calc.js"></script>
 <script src="./game.js"></script>
 </body>
 </html>
