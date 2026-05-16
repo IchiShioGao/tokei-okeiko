@@ -260,6 +260,73 @@
     </svg>`;
   }
 
+  // ---- Explanation (shown when wrong) ----
+  function explain(q){
+    let html = '';
+    if(q.type === 'afterMin'){
+      const sumM = q.m1 + q.dur;
+      html += `<span class="step">${q.h1}じ${q.m1}ふん から <span class="formula">${q.dur}ふん あと</span></span>`;
+      if(sumM < 60){
+        html += `<span class="step">ふん どうし たしざん</span>`;
+        html += `<span class="step"><span class="formula">${q.m1} + ${q.dur} = ${sumM}</span></span>`;
+      } else {
+        html += `<span class="step">ふん どうし たしざん</span>`;
+        html += `<span class="step"><span class="formula">${q.m1} + ${q.dur} = ${sumM}</span></span>`;
+        html += `<span class="step">60ぷんを こえたから 1じかん くりあげ！</span>`;
+        html += `<span class="step"><span class="formula">${sumM} − 60 = ${sumM-60}ふん</span></span>`;
+      }
+    } else if(q.type === 'beforeMin'){
+      html += `<span class="step">${q.h2}じ${q.m2}ふん の <span class="formula">${q.dur}ふん まえ</span></span>`;
+      if(q.m2 >= q.dur){
+        html += `<span class="step">ふん どうし ひきざん</span>`;
+        html += `<span class="step"><span class="formula">${q.m2} − ${q.dur} = ${q.m2-q.dur}ふん</span></span>`;
+      } else {
+        html += `<span class="step">ふんが たりないから 1じかん もどして 60ぷん もらおう</span>`;
+        html += `<span class="step"><span class="formula">${q.m2} + 60 − ${q.dur} = ${q.m2+60-q.dur}ふん</span></span>`;
+      }
+    } else if(q.type === 'elapsed'){
+      if(q.h1 === q.h2){
+        html += `<span class="step">おなじ ${q.h1}じだいだから ふんの ひきざん</span>`;
+        html += `<span class="step"><span class="formula">${q.m2} − ${q.m1} = ${q.dur}ふん</span></span>`;
+      } else {
+        html += `<span class="step">じかんが かわるから 2つに わけよう</span>`;
+        html += `<span class="step">${q.h1}じ${q.m1}ふん → ${q.h2}じ までは <span class="formula">${60-q.m1}ふん</span></span>`;
+        html += `<span class="step">${q.h2}じ → ${q.h2}じ${q.m2}ふん までは <span class="formula">${q.m2}ふん</span></span>`;
+        html += `<span class="step"><span class="formula">${60-q.m1} + ${q.m2} = ${q.dur}ふん</span></span>`;
+      }
+    } else if(q.type === 'elapsedHM'){
+      if(q.m2 >= q.m1){
+        const hDiff = q.h2 - q.h1;
+        const mDiff = q.m2 - q.m1;
+        html += `<span class="step">じかんの ひきざん</span>`;
+        html += `<span class="step"><span class="formula">${q.h2} − ${q.h1} = ${hDiff}じかん</span></span>`;
+        html += `<span class="step">ふんの ひきざん</span>`;
+        html += `<span class="step"><span class="formula">${q.m2} − ${q.m1} = ${mDiff}ふん</span></span>`;
+      } else {
+        const hDiff = q.h2 - q.h1 - 1;
+        const mDiff = q.m2 + 60 - q.m1;
+        html += `<span class="step">ふんが たりないから 1じかんを 60ぷんに りょうがえ</span>`;
+        html += `<span class="step">じかん: <span class="formula">${q.h2} − ${q.h1} − 1 = ${hDiff}じかん</span></span>`;
+        html += `<span class="step">ふん: <span class="formula">${q.m2} + 60 − ${q.m1} = ${mDiff}ふん</span></span>`;
+      }
+    } else if(q.type === 'sumDur'){
+      const parts = q.parts;
+      const sum = q.total;
+      const hours = Math.floor(sum / 60);
+      const mins = sum % 60;
+      html += `<span class="step">ぜんぶ ふんで たしざんしよう</span>`;
+      html += `<span class="step"><span class="formula">${parts.join(' + ')} = ${sum}ふん</span></span>`;
+      html += `<span class="step">60ぷん = 1じかん で なおすと…</span>`;
+      if(mins === 0){
+        html += `<span class="step"><span class="formula">${sum} ÷ 60 = ${hours}じかん</span></span>`;
+      } else {
+        html += `<span class="step"><span class="formula">${sum}ふん = ${hours}じかん${mins}ふん</span></span>`;
+      }
+    }
+    html += `<span class="answer">こたえ: ${q.answerLabel}</span>`;
+    return html;
+  }
+
   window.CALC = {
     CALC_LEVELS,
     genQuestion,
@@ -269,5 +336,6 @@
     fmtDur,
     renderArrow,
     renderMysteryClock,
+    explain,
   };
 })();

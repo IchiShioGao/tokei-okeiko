@@ -507,7 +507,20 @@
       $('story-mascot').innerHTML = mascotSVG('shina','sad');
       sndWrong();
     }
-    setTimeout(nextQuestion, c.correct ? 1100 : 2200);
+    if(c.correct){
+      setTimeout(nextQuestion, 1100);
+    } else {
+      setTimeout(() => showExplanation(q), 700);
+    }
+  }
+
+  function showExplanation(q){
+    $('explain-mascot').innerHTML = mascotSVG('shina', 'happy');
+    $('explain-body').innerHTML = CALC.explain(q);
+    $('explain-modal').hidden = false;
+  }
+  function closeExplanation(){
+    $('explain-modal').hidden = true;
   }
 
   function onAnswer(btn, c, q, choices){
@@ -651,7 +664,8 @@
     refreshHUD();
     renderHome();
     show('screen-home');
-    $('btn-back-home').addEventListener('click', () => { sndTap(); show('screen-home'); renderHome(); });
+    $('btn-explain-ok').addEventListener('click', () => { sndTap(); closeExplanation(); nextQuestion(); });
+    $('btn-back-home').addEventListener('click', () => { sndTap(); closeExplanation(); show('screen-home'); renderHome(); });
     $('btn-back-home2').addEventListener('click', () => { sndTap(); show('screen-home'); renderHome(); });
     $('btn-collection').addEventListener('click', () => { sndTap(); renderCollection(); show('screen-collection'); });
     $('btn-retry').addEventListener('click', () => { sndTap(); startSession(session.level); });

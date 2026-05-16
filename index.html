@@ -40,11 +40,11 @@
       <p class="subtitle">シナモといっしょに おけいこしよう！</p>
     </div>
 
-    <div class="section-head">
+    <div class="section-head" hidden>
       <span class="section-icon">🕐</span>
       <h2 class="section-title">とけいを よもう</h2>
     </div>
-    <div class="level-grid" id="level-grid"></div>
+    <div class="level-grid" id="level-grid" hidden></div>
 
     <div class="section-head section-head-calc">
       <span class="section-icon">✨</span>
@@ -125,6 +125,16 @@
     <div class="collection-grid" id="collection-grid"></div>
     <p class="collection-hint">🌟をあつめて おともだちを ふやそう！</p>
   </section>
+</div>
+
+<!-- Explanation modal (shown when wrong on a calc question) -->
+<div id="explain-modal" class="explain-modal" hidden>
+  <div class="explain-card">
+    <div class="explain-mascot" id="explain-mascot"></div>
+    <div class="explain-title">こう かんがえよう！</div>
+    <div class="explain-body" id="explain-body"></div>
+    <button class="btn btn-primary explain-btn" id="btn-explain-ok">わかった！</button>
+  </div>
 </div>
 
 <script src="./mascot.js"></script>
