@@ -51,12 +51,11 @@
     const m = choice(lv.minutes);
     return { level, hour:h, minute:m, fromSRS:false };
   }
-  function questionFromSRS(item){
-    return { level:item.level, hour:item.hour, minute:item.minute, fromSRS:true };
-  }
   function buildSession(level){
-    const due = SRS.getDueItems(level, MAX_DUE_PER_SESSION);
-    const dueQ = due.map(questionFromSRS);
+    const due = SRS.getDueItems('read', level, MAX_DUE_PER_SESSION);
+    const dueQ = due
+      .filter(it => it.params && typeof it.params.hour === 'number')
+      .map(it => ({ level, hour:it.params.hour, minute:it.params.minute, fromSRS:true }));
     const seen = new Set(dueQ.map(q => timeKey(q.hour,q.minute)));
     const fresh = [];
     let safety = 0;
@@ -348,18 +347,31 @@
   }
 
   function buildCalcSession(level){
-    // Calc questions don't use SRS (each one is a unique problem instance)
+    // Pull due items first, rebuild questions from their stored params, then
+    // fill the rest of the session with fresh random questions.
+    const due = SRS.getDueItems('calc', level, MAX_DUE_PER_SESSION);
     const out = [];
     const seen = new Set();
+    function key(q){ return SRS.itemId('calc', level, CALC.paramsOf(q)); }
+    for(const it of due){
+      const q = CALC.buildFromParams(it.params);
+      if(!q) continue;
+      q.fromSRS = true;
+      const k = key(q);
+      if(seen.has(k)) continue;
+      seen.add(k);
+      out.push(q);
+      if(out.length >= QUESTIONS_PER_SESSION) break;
+    }
     let safety = 0;
     while(out.length < QUESTIONS_PER_SESSION && safety++ < 200){
       const q = CALC.genQuestion(level);
-      const key = JSON.stringify(q.answer) + ':' + (q.story || '').slice(0, 20);
-      if(seen.has(key)) continue;
-      seen.add(key);
+      const k = key(q);
+      if(seen.has(k)) continue;
+      seen.add(k);
       out.push(q);
     }
-    return out;
+    return shuffle(out);
   }
 
   function renderQuestion(){
@@ -491,6 +503,7 @@
   function onCalcAnswer(btn, c, q, choices){
     Array.from($('choices').children).forEach(el => el.classList.add('disabled'));
     $('btn-hint').classList.add('used'); // freeze hint
+    SRS.recordAnswer('calc', q.level, CALC.paramsOf(q), c.correct);
     if(c.correct){
       btn.classList.add('correct');
       session.correct++;
@@ -520,7 +533,7 @@
 
   function onAnswer(btn, c, q, choices){
     Array.from($('choices').children).forEach(el => el.classList.add('disabled'));
-    SRS.recordAnswer(q.level, q.hour, q.minute, c.correct);
+    SRS.recordAnswer('read', q.level, { hour:q.hour, minute:q.minute }, c.correct);
     if(c.correct){
       btn.classList.add('correct');
       session.correct++;
@@ -667,7 +680,8 @@
     $('btn-reset').addEventListener('click', () => {
       if(confirm('ぜんぶのきろくを けします。よろしいですか？')){
         localStorage.removeItem(STATE_KEY);
-        localStorage.removeItem('clock-cinnamon.srs.v1');
+        localStorage.removeItem('clock-cinnamon.srs.v1');   // legacy Leitner data
+        localStorage.removeItem('clock-cinnamon.fsrs.v1');
         localStorage.removeItem('clock-cinnamon.meta.v1');
         state = loadState();
         refreshHUD();

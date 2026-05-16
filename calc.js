@@ -30,19 +30,10 @@
     return `${h}じかん${r}ふん`;
   }
 
-  // ---- Question generators ----
-  // Each returns: { type, period, ...times, dur(s), answer, answerLabel, story }
-
-  // ○分後の時こく (within same period, h2 <= 12)
-  function genAfter(){
-    const period = Math.random() < 0.5 ? 'am' : 'pm';
-    const h1 = 1 + rand(10);              // 1..10
-    const m1 = 5 * (1 + rand(11));        // 5..55 (avoid 0 for variety)
-    const dur = 5 * (2 + rand(10));       // 10..55
+  // ---- Builders: given parameters, assemble the full question object ----
+  function buildAfter(period, h1, m1, dur){
     const total = h1 * 60 + m1 + dur;
-    const h2 = Math.floor(total / 60);
-    const m2 = total % 60;
-    if(h2 > 12) return genAfter();
+    const h2 = Math.floor(total / 60), m2 = total % 60;
     const stories = [
       `${fmtTime(period,h1,m1)}から ${dur}ふん おさんぽしたよ。なんじに かえる？`,
       `シナは ${fmtTime(period,h1,m1)}に おひるねを はじめたよ。${dur}ふん ねたら なんじ？`,
@@ -51,22 +42,14 @@
     ];
     return {
       type:'afterMin', period, h1, m1, dur, h2, m2,
-      answer: { kind:'time', h:h2, m:m2 },
+      answer:{ kind:'time', h:h2, m:m2 },
       answerLabel: fmtTimeShort(h2, m2),
       story: choice(stories),
     };
   }
-
-  // ○分前の時こく
-  function genBefore(){
-    const period = Math.random() < 0.5 ? 'am' : 'pm';
-    const h2 = 2 + rand(10);              // 2..11
-    const m2 = 5 * (1 + rand(11));        // 5..55
-    const dur = 5 * (2 + rand(10));       // 10..55
+  function buildBefore(period, h2, m2, dur){
     const total = h2 * 60 + m2 - dur;
-    if(total < 60) return genBefore();    // keep h1 >= 1
-    const h1 = Math.floor(total / 60);
-    const m1 = total % 60;
+    const h1 = Math.floor(total / 60), m1 = total % 60;
     const stories = [
       `シナは ${fmtTime(period,h2,m2)}に ごはんを たべおわったよ。${dur}ふん たべていたなら、はじめたのは なんじ？`,
       `${fmtTime(period,h2,m2)}の ${dur}ふん まえは なんじ？`,
@@ -74,22 +57,14 @@
     ];
     return {
       type:'beforeMin', period, h1, m1, dur, h2, m2,
-      answer: { kind:'time', h:h1, m:m1 },
+      answer:{ kind:'time', h:h1, m:m1 },
       answerLabel: fmtTimeShort(h1, m1),
       story: choice(stories),
     };
   }
-
-  // けいか時間（同じ時間内、または1時間以内の差）
-  function genElapsed(){
-    const period = Math.random() < 0.5 ? 'am' : 'pm';
-    const h1 = 1 + rand(10);
-    const m1 = 5 * rand(12);
-    const dur = 5 * (2 + rand(11));       // 10..60
+  function buildElapsed(period, h1, m1, dur){
     const total = h1 * 60 + m1 + dur;
-    const h2 = Math.floor(total / 60);
-    const m2 = total % 60;
-    if(h2 > 12) return genElapsed();
+    const h2 = Math.floor(total / 60), m2 = total % 60;
     const stories = [
       `${fmtTime(period,h1,m1)}から ${fmtTime(period,h2,m2)}まで えほんを よんだよ。なんぷん？`,
       `${fmtTime(period,h1,m1)}から ${fmtTime(period,h2,m2)}まで マイクラで あそんだよ。なんぷん？`,
@@ -98,24 +73,14 @@
     ];
     return {
       type:'elapsed', period, h1, m1, dur, h2, m2,
-      answer: { kind:'dur', min:dur },
+      answer:{ kind:'dur', min:dur },
       answerLabel: fmtDur(dur),
       story: choice(stories),
     };
   }
-
-  // けいか時間（1時間以上、何時間何分）
-  function genElapsedHM(){
-    const period = Math.random() < 0.5 ? 'am' : 'pm';
-    const h1 = 1 + rand(8);
-    const m1 = 5 * rand(12);
-    const hours = 1 + rand(2);            // 1..2 hours
-    const extraMin = 5 * (1 + rand(11));  // 5..55 minutes
-    const dur = hours * 60 + extraMin;
+  function buildElapsedHM(period, h1, m1, dur){
     const total = h1 * 60 + m1 + dur;
-    const h2 = Math.floor(total / 60);
-    const m2 = total % 60;
-    if(h2 > 12) return genElapsedHM();
+    const h2 = Math.floor(total / 60), m2 = total % 60;
     const stories = [
       `${fmtTime(period,h1,m1)}に おきて ${fmtTime(period,h2,m2)}に いえを でたよ。じゅんびの じかんは なんじかん なんぷん？`,
       `${fmtTime(period,h1,m1)}から ${fmtTime(period,h2,m2)}まで おでかけ。なんじかん なんぷん？`,
@@ -123,44 +88,89 @@
     ];
     return {
       type:'elapsedHM', period, h1, m1, dur, h2, m2,
-      answer: { kind:'dur', min:dur },
+      answer:{ kind:'dur', min:dur },
       answerLabel: fmtDur(dur),
       story: choice(stories),
     };
   }
-
-  // たしざん おはなし — ensure total >= 60 so answer is "○じかん○ふん"
-  function genSum(){
-    const variant = rand(3);
-    let parts, story;
-    if(variant === 0){
-      // 2-day reading
-      const a = 5 * (6 + rand(8));         // 30..65
-      const b = 5 * (8 + rand(10));        // 40..85
-      parts = [a, b];
-      story = `きのう ${fmtDur(a)}、きょう ${fmtDur(b)} どくしょしたよ。あわせて なんじかん なんぷん？`;
-    } else if(variant === 1){
-      // 3 short play sessions
-      const a = 5 * (5 + rand(6));         // 25..50
-      const b = 5 * (5 + rand(6));
-      const c = 5 * (6 + rand(8));         // 30..65
-      parts = [a, b, c];
-      story = `あさ ${fmtDur(a)}、ひる ${fmtDur(b)}、ゆうがた ${fmtDur(c)} あそんだよ。あわせて なんじかん なんぷん？`;
-    } else {
-      // Yesterday + today study
-      const a = 5 * (8 + rand(8));         // 40..75
-      const b = 5 * (9 + rand(10));        // 45..90
-      parts = [a, b];
-      story = `おべんきょう きのう ${fmtDur(a)}、きょう ${fmtDur(b)}。ふつかかんで あわせて なんじかん なんぷん？`;
-    }
+  function buildSum(parts){
     const total = parts.reduce((s,v)=>s+v, 0);
-    if(total < 60) return genSum();  // safety
+    let story;
+    if(parts.length === 2){
+      // Heuristic: alternate between the two-part story variants
+      story = Math.random() < 0.5
+        ? `きのう ${fmtDur(parts[0])}、きょう ${fmtDur(parts[1])} どくしょしたよ。あわせて なんじかん なんぷん？`
+        : `おべんきょう きのう ${fmtDur(parts[0])}、きょう ${fmtDur(parts[1])}。ふつかかんで あわせて なんじかん なんぷん？`;
+    } else {
+      story = `あさ ${fmtDur(parts[0])}、ひる ${fmtDur(parts[1])}、ゆうがた ${fmtDur(parts[2])} あそんだよ。あわせて なんじかん なんぷん？`;
+    }
     return {
       type:'sumDur', parts, total,
-      answer: { kind:'dur', min:total },
+      answer:{ kind:'dur', min:total },
       answerLabel: fmtDur(total),
       story,
     };
+  }
+
+  // ---- Question generators (random fresh question) ----
+  function genAfter(){
+    const period = Math.random() < 0.5 ? 'am' : 'pm';
+    const h1 = 1 + rand(10);              // 1..10
+    const m1 = 5 * (1 + rand(11));        // 5..55
+    const dur = 5 * (2 + rand(10));       // 10..55
+    const total = h1 * 60 + m1 + dur;
+    if(Math.floor(total / 60) > 12) return genAfter();
+    return buildAfter(period, h1, m1, dur);
+  }
+  function genBefore(){
+    const period = Math.random() < 0.5 ? 'am' : 'pm';
+    const h2 = 2 + rand(10);              // 2..11
+    const m2 = 5 * (1 + rand(11));        // 5..55
+    const dur = 5 * (2 + rand(10));       // 10..55
+    const total = h2 * 60 + m2 - dur;
+    if(total < 60) return genBefore();
+    return buildBefore(period, h2, m2, dur);
+  }
+  function genElapsed(){
+    const period = Math.random() < 0.5 ? 'am' : 'pm';
+    const h1 = 1 + rand(10);
+    const m1 = 5 * rand(12);
+    const dur = 5 * (2 + rand(11));       // 10..60
+    const total = h1 * 60 + m1 + dur;
+    if(Math.floor(total / 60) > 12) return genElapsed();
+    return buildElapsed(period, h1, m1, dur);
+  }
+  function genElapsedHM(){
+    const period = Math.random() < 0.5 ? 'am' : 'pm';
+    const h1 = 1 + rand(8);
+    const m1 = 5 * rand(12);
+    const hours = 1 + rand(2);            // 1..2
+    const extraMin = 5 * (1 + rand(11));  // 5..55
+    const dur = hours * 60 + extraMin;
+    const total = h1 * 60 + m1 + dur;
+    if(Math.floor(total / 60) > 12) return genElapsedHM();
+    return buildElapsedHM(period, h1, m1, dur);
+  }
+  function genSum(){
+    const variant = rand(3);
+    let parts;
+    if(variant === 0){
+      const a = 5 * (6 + rand(8));         // 30..65
+      const b = 5 * (8 + rand(10));        // 40..85
+      parts = [a, b];
+    } else if(variant === 1){
+      const a = 5 * (5 + rand(6));
+      const b = 5 * (5 + rand(6));
+      const c = 5 * (6 + rand(8));
+      parts = [a, b, c];
+    } else {
+      const a = 5 * (8 + rand(8));
+      const b = 5 * (9 + rand(10));
+      parts = [a, b];
+    }
+    const total = parts.reduce((s,v)=>s+v, 0);
+    if(total < 60) return genSum();
+    return buildSum(parts);
   }
 
   function genQuestion(levelId){
@@ -172,6 +182,32 @@
       case 'elapsedHM': return genElapsedHM();
       case 'sumDur':    return genSum();
     }
+  }
+
+  // Reconstruct a calc question from stored SRS params.
+  // Period (am/pm) is not part of the SRS id, so we re-pick it for variety.
+  function buildFromParams(p){
+    const period = p.period || (Math.random() < 0.5 ? 'am' : 'pm');
+    switch(p.type){
+      case 'afterMin':  return buildAfter(period, p.h1, p.m1, p.dur);
+      case 'beforeMin': return buildBefore(period, p.h2, p.m2, p.dur);
+      case 'elapsed':   return buildElapsed(period, p.h1, p.m1, p.dur);
+      case 'elapsedHM': return buildElapsedHM(period, p.h1, p.m1, p.dur);
+      case 'sumDur':    return buildSum(p.parts);
+    }
+    return null;
+  }
+
+  // Salient parameters used to identify a question in FSRS storage.
+  function paramsOf(q){
+    switch(q.type){
+      case 'afterMin':  return { type:q.type, h1:q.h1, m1:q.m1, dur:q.dur };
+      case 'beforeMin': return { type:q.type, h2:q.h2, m2:q.m2, dur:q.dur };
+      case 'elapsed':   return { type:q.type, h1:q.h1, m1:q.m1, dur:q.dur };
+      case 'elapsedHM': return { type:q.type, h1:q.h1, m1:q.m1, dur:q.dur };
+      case 'sumDur':    return { type:q.type, parts:q.parts.slice() };
+    }
+    return { type:q.type };
   }
 
   // ---- Choices (distractors) ----
@@ -186,15 +222,12 @@
     }
     if(q.answer.kind === 'time'){
       const h = q.answer.h, m = q.answer.m;
-      // Same minute, different hour (off-by-one)
       add(fmtTimeShort(h === 12 ? 1 : h + 1, m));
       add(fmtTimeShort(h === 1 ? 12 : h - 1, m));
-      // Same hour, ±10 minute
       const mP = (m + 10) % 60;
       const mM = (m - 10 + 60) % 60;
       add(fmtTimeShort(h, mP));
       add(fmtTimeShort(h, mM));
-      // Swapped digits if interesting (e.g. 4:30 -> 3:40)
       if(m >= 10 && m % 10 === 0){
         const swappedH = Math.floor(m / 10);
         const swappedM = h * 10;
@@ -202,30 +235,24 @@
           add(fmtTimeShort(swappedH, swappedM));
         }
       }
-      // ±5 minute
       const mP5 = (m + 5) % 60;
       const mM5 = (m - 5 + 60) % 60;
       add(fmtTimeShort(h, mP5));
       add(fmtTimeShort(h, mM5));
     } else {
       const min = q.answer.min;
-      // ±10, ±5 minute variants
       [-15, -10, -5, 5, 10, 15].forEach(d => {
         const v = min + d;
         if(v > 0 && v < 24*60) add(fmtDur(v));
       });
-      // Common kid mistake: forgot to carry — "1じかん70ぷん" style
       if(min >= 60){
         const h = Math.floor(min / 60);
         const r = min % 60;
         if(h >= 2 && r < 30){
-          // present (h-1) hours + (r+60) minutes
           add(`${h-1}じかん${r+60}ふん`);
         }
-        // Hours-only confusion
         add(`${h}じかん`);
       }
-      // For sum: present partial sums or each part as a wrong answer
       if(q.type === 'sumDur' && q.parts){
         const last = q.parts[q.parts.length - 1];
         add(fmtDur(last));
@@ -263,6 +290,8 @@
   window.CALC = {
     CALC_LEVELS,
     genQuestion,
+    buildFromParams,
+    paramsOf,
     makeChoices,
     fmtTime,
     fmtTimeShort,
