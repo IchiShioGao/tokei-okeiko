@@ -1,6 +1,10 @@
 // Main game controller. Vanilla JS, no framework.
 (function(){
+  // Keep this key STABLE across releases — bumping it would orphan saved
+  // progress. Schema changes go through STATE_SCHEMA_VERSION + migrations.
   const STATE_KEY = 'clock-cinnamon.state.v1';
+  const STATE_BACKUP_KEY = 'clock-cinnamon.state.backup';
+  const STATE_SCHEMA_VERSION = 1;
 
   // Level definitions
   const LEVELS = [
@@ -15,6 +19,7 @@
 
   // -------- Persistent state --------
   const defaultState = () => ({
+    schemaVersion: STATE_SCHEMA_VERSION,
     coins: 0,
     xp: 0,
     bestLevel: 1,
@@ -25,9 +30,42 @@
     stampDates: [],   // ISO date strings, played this week
     hintUsedThisSession: false,
   });
+  // Deep-merge so new defaults (e.g. a future level added to levelStars) get
+  // filled in WITHOUT overwriting saved progress.
+  function mergeDefaults(target, saved){
+    if(!saved || typeof saved !== 'object') return target;
+    Object.keys(saved).forEach(k => {
+      const sv = saved[k], tv = target[k];
+      if(sv && typeof sv === 'object' && !Array.isArray(sv)
+         && tv && typeof tv === 'object' && !Array.isArray(tv)){
+        target[k] = mergeDefaults(tv, sv);
+      } else if(sv !== undefined){
+        target[k] = sv;
+      }
+    });
+    return target;
+  }
+  // Run forward-only schema migrations. Add new `if` blocks here as the
+  // schema grows; never remove old branches.
+  function migrateState(s){
+    if(!s.schemaVersion) s.schemaVersion = 1;
+    // Example for the future:
+    // if(s.schemaVersion < 2){ ...transform...; s.schemaVersion = 2; }
+    s.schemaVersion = STATE_SCHEMA_VERSION;
+    return s;
+  }
   function loadState(){
-    try { return Object.assign(defaultState(), JSON.parse(localStorage.getItem(STATE_KEY)) || {}); }
-    catch(e){ return defaultState(); }
+    const raw = localStorage.getItem(STATE_KEY);
+    if(!raw) return defaultState();
+    try {
+      const saved = JSON.parse(raw);
+      return migrateState(mergeDefaults(defaultState(), saved));
+    } catch(e){
+      // Corrupt JSON — stash the raw bytes so we don't silently destroy the
+      // user's history, then fall back to defaults.
+      try { localStorage.setItem(STATE_BACKUP_KEY, raw); } catch(_){}
+      return defaultState();
+    }
   }
   function saveState(s){ localStorage.setItem(STATE_KEY, JSON.stringify(s)); }
   let state = loadState();

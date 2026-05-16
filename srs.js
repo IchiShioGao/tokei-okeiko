@@ -2,18 +2,26 @@
 // Each item: { id: "h:m", level, box(1..5), nextDue (session count), wrongCount, lastSeen }
 // Items are scheduled by an integer "session counter" (incremented when a session ends).
 
+// Keep these keys STABLE across releases — bumping them would erase the
+// user's review history. Add schema migrations in-place instead.
 const SRS_KEY = 'clock-cinnamon.srs.v1';
 const META_KEY = 'clock-cinnamon.meta.v1';
+const SRS_BACKUP_KEY = 'clock-cinnamon.srs.backup';
+const META_BACKUP_KEY = 'clock-cinnamon.meta.backup';
 
-function loadSRS(){
-  try { return JSON.parse(localStorage.getItem(SRS_KEY)) || {}; }
-  catch(e){ return {}; }
+function safeLoad(key, backupKey){
+  const raw = localStorage.getItem(key);
+  if(!raw) return {};
+  try { return JSON.parse(raw) || {}; }
+  catch(e){
+    // Don't silently throw away history on corrupt JSON.
+    try { localStorage.setItem(backupKey, raw); } catch(_){}
+    return {};
+  }
 }
+function loadSRS(){ return safeLoad(SRS_KEY, SRS_BACKUP_KEY); }
 function saveSRS(s){ localStorage.setItem(SRS_KEY, JSON.stringify(s)); }
-function loadMeta(){
-  try { return JSON.parse(localStorage.getItem(META_KEY)) || {}; }
-  catch(e){ return {}; }
-}
+function loadMeta(){ return safeLoad(META_KEY, META_BACKUP_KEY); }
 function saveMeta(m){ localStorage.setItem(META_KEY, JSON.stringify(m)); }
 
 function itemId(h, m, level){ return `L${level}:${h}:${m}`; }
