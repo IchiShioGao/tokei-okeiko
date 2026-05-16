@@ -18,10 +18,12 @@
     coins: 0,
     xp: 0,
     bestLevel: 1,
-    levelStars: {1:0,2:0,3:0,4:0,5:0},  // best stars per level
+    levelStars: {1:0,2:0,3:0,4:0,5:0,c1:0,c2:0,c3:0,c4:0,c5:0},  // best stars per level
     friends: ['shina'],
     streakDays: 0,
     lastPlayDate: null,
+    stampDates: [],   // ISO date strings, played this week
+    hintUsedThisSession: false,
   });
   function loadState(){
     try { return Object.assign(defaultState(), JSON.parse(localStorage.getItem(STATE_KEY)) || {}); }
@@ -223,6 +225,8 @@
   }
   function renderHome(){
     $('mascot-home').innerHTML = mascotSVG('shina','happy');
+
+    // Clock-reading levels
     const grid = $('level-grid');
     grid.innerHTML = '';
     LEVELS.forEach(lv => {
@@ -242,29 +246,151 @@
       }
       grid.appendChild(card);
     });
+
+    // Calc-mode levels
+    const calcGrid = $('calc-grid');
+    calcGrid.innerHTML = '';
+    CALC.CALC_LEVELS.forEach((lv, i) => {
+      const unlocked = state.coins >= lv.unlock || lv.unlock === 0;
+      const stars = state.levelStars[lv.id] || 0;
+      const card = document.createElement('div');
+      card.className = 'level-card calc' + (unlocked ? '' : ' locked');
+      card.innerHTML = `
+        <div class="lv-badge">けいさん ${i+1}</div>
+        <div class="lv-name">${lv.name}</div>
+        <div class="lv-desc">${lv.desc}</div>
+        <div class="lv-stars">${'★'.repeat(stars)}<span class="off">${'★'.repeat(3-stars)}</span></div>
+        ${unlocked ? '' : `<div class="lv-lock">🔒 🌟${lv.unlock}</div>`}
+      `;
+      if(unlocked){
+        card.addEventListener('click', () => { sndTap(); startSession(lv.id); });
+      }
+      calcGrid.appendChild(card);
+    });
+
+    renderStampCard();
+  }
+
+  // -------- Stamp card --------
+  function renderStampCard(){
+    const row = $('stamp-row');
+    row.innerHTML = '';
+    const today = new Date();
+    const dow = today.getDay(); // 0=Sun
+    const monday = new Date(today);
+    monday.setDate(today.getDate() - ((dow + 6) % 7));
+    const labels = ['げつ','か','すい','もく','きん','ど','にち'];
+    const dates = [];
+    for(let i = 0; i < 7; i++){
+      const d = new Date(monday);
+      d.setDate(monday.getDate() + i);
+      dates.push(d.toISOString().slice(0,10));
+    }
+    const todayIso = today.toISOString().slice(0,10);
+    let stampedCount = 0;
+    dates.forEach((iso, i) => {
+      const done = (state.stampDates || []).includes(iso);
+      if(done) stampedCount++;
+      const el = document.createElement('div');
+      el.className = 'stamp' + (done ? ' done' : '') + (iso === todayIso ? ' today' : '');
+      el.textContent = done ? '🌸' : labels[i];
+      row.appendChild(el);
+    });
+    const sub = $('stamp-card-sub');
+    if(stampedCount >= 7){
+      sub.textContent = '🎉 こんしゅう パーフェクト！';
+    } else if(stampedCount > 0){
+      sub.textContent = `あと ${7 - stampedCount}にちで パーフェクト！`;
+    } else {
+      sub.textContent = 'きょうも がんばろう！';
+    }
+  }
+  function stampToday(){
+    const today = new Date().toISOString().slice(0,10);
+    state.stampDates = state.stampDates || [];
+    // Trim entries older than 14 days to keep array small
+    const cutoff = new Date(Date.now() - 14*86400000).toISOString().slice(0,10);
+    state.stampDates = state.stampDates.filter(d => d >= cutoff);
+    if(!state.stampDates.includes(today)){
+      state.stampDates.push(today);
+      return true; // newly stamped
+    }
+    return false;
+  }
+
+  // -------- Toast --------
+  function toast(msg, ms=2400){
+    let el = document.querySelector('.toast');
+    if(!el){
+      el = document.createElement('div');
+      el.className = 'toast';
+      document.body.appendChild(el);
+    }
+    el.textContent = msg;
+    requestAnimationFrame(() => el.classList.add('show'));
+    clearTimeout(toast._t);
+    toast._t = setTimeout(() => el.classList.remove('show'), ms);
   }
 
   // -------- Session --------
-  let session = null;  // { level, queue, idx, correct, comboMax, combo, awarded }
+  let session = null;
+  const isCalcLevel = (lv) => typeof lv === 'string' && lv.startsWith('c');
+
   function startSession(level){
-    const queue = buildSession(level);
-    session = { level, queue, idx:0, correct:0, comboMax:0, combo:0, awarded:0 };
+    const mode = isCalcLevel(level) ? 'calc' : 'read';
+    const queue = mode === 'calc'
+      ? buildCalcSession(level)
+      : buildSession(level);
+    session = { level, mode, queue, idx:0, correct:0, comboMax:0, combo:0, awarded:0 };
     show('screen-quiz');
     $('q-total').textContent = queue.length;
     renderQuestion();
   }
+
+  function buildCalcSession(level){
+    // Calc questions don't use SRS (each one is a unique problem instance)
+    const out = [];
+    const seen = new Set();
+    let safety = 0;
+    while(out.length < QUESTIONS_PER_SESSION && safety++ < 200){
+      const q = CALC.genQuestion(level);
+      const key = JSON.stringify(q.answer) + ':' + (q.story || '').slice(0, 20);
+      if(seen.has(key)) continue;
+      seen.add(key);
+      out.push(q);
+    }
+    return out;
+  }
+
   function renderQuestion(){
     const q = session.queue[session.idx];
     $('q-index').textContent = session.idx + 1;
     $('progress-fill').style.width = ((session.idx) / session.queue.length * 100) + '%';
     $('combo-count').textContent = session.combo;
     $('combo-chip').classList.toggle('zero', session.combo < 2);
-    $('clock').innerHTML = renderClock(q.hour, q.minute);
-    $('mascot-quiz').innerHTML = mascotSVG('shina','happy');
     $('feedback').textContent = '';
     $('feedback').className = 'feedback';
+
+    if(session.mode === 'calc'){
+      renderCalcQuestion(q);
+    } else {
+      renderReadQuestion(q);
+    }
+  }
+
+  function renderReadQuestion(q){
+    $('story-bubble').hidden = true;
+    $('clock-stage').className = 'clock-stage';
+    $('clock').innerHTML = renderClock(q.hour, q.minute);
+    $('clock2').hidden = true;
+    $('calc-arrow').hidden = true;
+    $('mascot-quiz').style.display = '';
+    $('mascot-quiz').innerHTML = mascotSVG('shina','happy');
+    $('btn-hint').hidden = true;
+
     const choices = makeChoices(q);
     const cont = $('choices');
+    cont.className = 'choices';
     cont.innerHTML = '';
     choices.forEach(c => {
       const btn = document.createElement('button');
@@ -274,6 +400,124 @@
       cont.appendChild(btn);
     });
   }
+
+  function renderCalcQuestion(q){
+    // Story bubble
+    $('story-bubble').hidden = false;
+    $('story-mascot').innerHTML = mascotSVG('shina', 'happy');
+    $('story-text').innerHTML = q.story;
+
+    // Clock layout
+    const stage = $('clock-stage');
+    const clock1 = $('clock');
+    const clock2 = $('clock2');
+    const arrow = $('calc-arrow');
+    $('mascot-quiz').style.display = 'none';
+
+    if(q.type === 'sumDur'){
+      stage.className = 'clock-stage calc-mode calc-none';
+    } else if(q.type === 'elapsed' || q.type === 'elapsedHM'){
+      // Both clocks shown
+      stage.className = 'clock-stage calc-mode calc-pair';
+      clock1.innerHTML = renderClock(q.h1, q.m1);
+      clock2.hidden = false;
+      clock2.innerHTML = renderClock(q.h2, q.m2);
+      arrow.hidden = false;
+      arrow.innerHTML = CALC.renderArrow();
+    } else if(q.type === 'afterMin' || q.type === 'beforeMin'){
+      // Start clock + arrow + mystery clock
+      stage.className = 'clock-stage calc-mode calc-pair';
+      const known = q.type === 'afterMin'
+        ? { h:q.h1, m:q.m1 }
+        : { h:q.h2, m:q.m2 };
+      clock1.innerHTML = renderClock(known.h, known.m);
+      clock2.hidden = false;
+      clock2.innerHTML = CALC.renderMysteryClock();
+      arrow.hidden = false;
+      arrow.innerHTML = CALC.renderArrow();
+    }
+
+    // Hint button: available once per question
+    const hintBtn = $('btn-hint');
+    hintBtn.hidden = false;
+    hintBtn.classList.remove('used');
+    hintBtn.onclick = () => showHint(q);
+
+    // Choices
+    const choices = CALC.makeChoices(q);
+    const cont = $('choices');
+    cont.className = 'choices calc-choices';
+    cont.innerHTML = '';
+    choices.forEach(c => {
+      const btn = document.createElement('button');
+      btn.className = 'choice';
+      btn.textContent = c.label;
+      btn.addEventListener('click', () => onCalcAnswer(btn, c, q, choices));
+      cont.appendChild(btn);
+    });
+  }
+
+  // Show hint by animating the answer clock to reveal the answer time
+  // (for afterMin / beforeMin), or by showing duration text briefly.
+  function showHint(q){
+    const hintBtn = $('btn-hint');
+    if(hintBtn.classList.contains('used')) return;
+    hintBtn.classList.add('used');
+    // Cost: -1 combo
+    if(session.combo > 0) { session.combo = Math.max(0, session.combo - 1); $('combo-count').textContent = session.combo; }
+    if(q.type === 'afterMin' || q.type === 'beforeMin'){
+      // Reveal the answer clock for 1.5s
+      const reveal = q.type === 'afterMin' ? { h:q.h2, m:q.m2 } : { h:q.h1, m:q.m1 };
+      const clock2 = $('clock2');
+      const original = clock2.innerHTML;
+      clock2.innerHTML = renderClock(reveal.h, reveal.m);
+      clock2.style.opacity = '0.6';
+      setTimeout(() => {
+        clock2.innerHTML = CALC.renderMysteryClock();
+        clock2.style.opacity = '1';
+      }, 1800);
+      toast('💡 こたえの とけいを ちらっ！');
+    } else if(q.type === 'elapsed' || q.type === 'elapsedHM'){
+      // Show duration hint as toast
+      const hours = Math.floor(q.dur / 60);
+      const mins = q.dur % 60;
+      const hint = hours > 0 ? `${hours}じかんと あと すこし...` : `だいたい ${Math.floor(q.dur/10)*10}ぷんくらい`;
+      toast('💡 ' + hint);
+    } else if(q.type === 'sumDur'){
+      toast('💡 60ぷん = 1じかん だよ！');
+    }
+    sndTap();
+  }
+  function onCalcAnswer(btn, c, q, choices){
+    Array.from($('choices').children).forEach(el => el.classList.add('disabled'));
+    $('btn-hint').classList.add('used'); // freeze hint
+    if(c.correct){
+      btn.classList.add('correct');
+      session.correct++;
+      session.combo++;
+      session.comboMax = Math.max(session.comboMax, session.combo);
+      const fb = $('feedback');
+      const msgs = ['せいかい！','すごーい！','よくできました！','やったね！','てんさい！','かんぺき！','きらきら〜！','すてき！','けいさん めいじん！'];
+      const emojis = ['🎉','✨','🌟','💖','🎀','🌸','💫','⭐'];
+      fb.textContent = msgs[rand(msgs.length)] + ' ' + emojis[rand(emojis.length)];
+      fb.classList.add('good');
+      $('story-mascot').innerHTML = mascotSVG('shina','wow');
+      if(session.combo >= 3 && session.combo % 3 === 0){ sndCombo(); } else { sndCorrect(); }
+    } else {
+      btn.classList.add('wrong');
+      session.combo = 0;
+      Array.from($('choices').children).forEach((el, i) => {
+        if(choices[i].correct) el.classList.add('reveal');
+      });
+      const fb = $('feedback');
+      fb.textContent = `おしい！ こたえは ${q.answerLabel}`;
+      fb.classList.add('bad');
+      $('story-mascot').innerHTML = mascotSVG('shina','sad');
+      sndWrong();
+    }
+    setTimeout(nextQuestion, c.correct ? 1100 : 2200);
+  }
+
   function onAnswer(btn, c, q, choices){
     Array.from($('choices').children).forEach(el => el.classList.add('disabled'));
     SRS.recordAnswer(q.level, q.hour, q.minute, c.correct);
@@ -313,15 +557,18 @@
     }
   }
   function finishSession(){
-    SRS.bumpSession();
+    if(session.mode === 'read') SRS.bumpSession();
     const correct = session.correct;
     const stars = correct >= 10 ? 3 : correct >= 8 ? 2 : correct >= 6 ? 1 : 0;
-    // Coins: 2 per correct + combo bonus
-    const coins = correct * 2 + session.comboMax * 2 + stars * 5;
+    // Coins: 2 per correct + combo bonus. Calc gets a small bonus to incentivise.
+    const calcBonus = session.mode === 'calc' ? 5 : 0;
+    const coins = correct * 2 + session.comboMax * 2 + stars * 5 + calcBonus;
     state.coins += coins;
     state.xp += correct * 10;
     state.levelStars[session.level] = Math.max(state.levelStars[session.level] || 0, stars);
-    state.bestLevel = Math.max(state.bestLevel, session.level);
+    if(typeof session.level === 'number'){
+      state.bestLevel = Math.max(state.bestLevel, session.level);
+    }
     // daily streak
     const today = new Date().toISOString().slice(0,10);
     if(state.lastPlayDate !== today){
@@ -329,7 +576,17 @@
       state.streakDays = state.lastPlayDate === yest ? (state.streakDays + 1) : 1;
       state.lastPlayDate = today;
     }
+    // Stamp card
+    const newlyStamped = stampToday();
     saveState(state);
+    if(newlyStamped){
+      setTimeout(() => toast('🌸 きょうの スタンプ ゲット！'), 600);
+      // Bonus when all 7 stamps collected this week
+      const weekStamps = (state.stampDates || []).slice(-7).length;
+      if(weekStamps === 7){
+        setTimeout(() => { state.coins += 50; saveState(state); refreshHUD(); toast('🎉 1しゅうかん パーフェクト！ +🌟50'); }, 1600);
+      }
+    }
 
     // Show result
     show('screen-result');
