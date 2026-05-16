@@ -457,35 +457,27 @@
     });
   }
 
-  // Show hint by animating the answer clock to reveal the answer time
-  // (for afterMin / beforeMin), or by showing duration text briefly.
+  // Show a thinking hint (strategy only — never reveals the answer).
+  // Cost: breaks the current combo so it's a real choice, not a free peek.
   function showHint(q){
     const hintBtn = $('btn-hint');
     if(hintBtn.classList.contains('used')) return;
     hintBtn.classList.add('used');
-    // Cost: -1 combo
-    if(session.combo > 0) { session.combo = Math.max(0, session.combo - 1); $('combo-count').textContent = session.combo; }
-    if(q.type === 'afterMin' || q.type === 'beforeMin'){
-      // Reveal the answer clock for 1.5s
-      const reveal = q.type === 'afterMin' ? { h:q.h2, m:q.m2 } : { h:q.h1, m:q.m1 };
-      const clock2 = $('clock2');
-      const original = clock2.innerHTML;
-      clock2.innerHTML = renderClock(reveal.h, reveal.m);
-      clock2.style.opacity = '0.6';
-      setTimeout(() => {
-        clock2.innerHTML = CALC.renderMysteryClock();
-        clock2.style.opacity = '1';
-      }, 1800);
-      toast('💡 こたえの とけいを ちらっ！');
-    } else if(q.type === 'elapsed' || q.type === 'elapsedHM'){
-      // Show duration hint as toast
-      const hours = Math.floor(q.dur / 60);
-      const mins = q.dur % 60;
-      const hint = hours > 0 ? `${hours}じかんと あと すこし...` : `だいたい ${Math.floor(q.dur/10)*10}ぷんくらい`;
-      toast('💡 ' + hint);
+    // Cost: combo reset to 0
+    if(session.combo > 0){ session.combo = 0; $('combo-count').textContent = 0; $('combo-chip').classList.add('zero'); }
+    let msg = '';
+    if(q.type === 'afterMin'){
+      msg = `${q.m1}ふんに ${q.dur}ふんを たしざん！ 60を こえたら 1じかん くりあがり`;
+    } else if(q.type === 'beforeMin'){
+      msg = `${q.m2}ふんから ${q.dur}ふんを ひきざん！ たりなかったら 1じかん もどろう`;
+    } else if(q.type === 'elapsed'){
+      msg = `おなじ じかんなら ふんの ひきざん。じかんが ちがうなら 60ふん たすのを わすれずに！`;
+    } else if(q.type === 'elapsedHM'){
+      msg = `まず なんじかん たったか かぞえよう。そのあとで ふんの ちがいを たそう！`;
     } else if(q.type === 'sumDur'){
-      toast('💡 60ぷん = 1じかん だよ！');
+      msg = `ぜんぶ ふんで たしざん。さいごに 60ふん = 1じかん で なおそう！`;
     }
+    if(msg) toast('💡 ' + msg, 3600);
     sndTap();
   }
   function onCalcAnswer(btn, c, q, choices){
